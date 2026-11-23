@@ -1,0 +1,15 @@
+{
+  "familySans": "IBM Plex Sans",
+  "familyMono": "IBM Plex Mono",
+  "license": "OFL-1.1",
+  "css": "fonts.css",
+  "externalNetwork": false,
+  "files": [
+    "IBMPlexSans-Regular.woff2",
+    "IBMPlexSans-Medium.woff2",
+    "IBMPlexSans-SemiBold.woff2",
+    "IBMPlexMono-Regular.woff2"
+  ],
+  "notes": "LICENSE-NOTES.md",
+  "ofl": "OFL.txt"
+}

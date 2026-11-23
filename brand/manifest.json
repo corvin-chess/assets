@@ -1,0 +1,9 @@
+{
+  "mark": "mark.svg",
+  "viewBox": "0 0 64 64",
+  "colors": {
+    "stroke": "#2f3d63",
+    "eye": "#c9a227"
+  },
+  "notes": "LICENSE-NOTES.md"
+}

@@ -18,5 +18,5 @@ jobs:
           node-version: "20"
       - name: Verify README
         run: node scripts/verify-readme.mjs
-      - name: Verify Corvid, Ravenboard, and play sounds
+      - name: Verify Corvid, Ravenboard, sounds, brand, and fonts
         run: node scripts/verify-assets.mjs

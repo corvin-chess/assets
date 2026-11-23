@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
- * Assert assets README matches README_STYLE repository template rules (CV-022/CV-110/CV-111).
+ * Assert assets README matches README_STYLE repository template rules
+ * (CV-022/CV-110/CV-111/CV-112).
  */
 import { readFileSync, existsSync } from "node:fs"
 import { dirname, join, resolve } from "node:path"
@@ -20,11 +21,10 @@ const LICENSE_ID = "CC BY-SA 4.0"
 const CLOSING =
   "Original pieces, boards, and sounds so every Corvin client shares one honest face."
 
-const PLANNED_AREAS =
-  /^(Brand mark \+ IBM Plex self-host|Implementation)$/i
+const PLANNED_AREAS = /^(Offer SFX|Implementation)$/i
 
 const BUILT_AREAS =
-  /^(README|LICENSE|CI verify gate|Corvid piece SVGs|Ravenboard colors|Move\/capture\/check\/game-end sounds)$/i
+  /^(README|LICENSE|CI verify gate|Corvid piece SVGs|Ravenboard colors|Move\/capture\/check\/game-end sounds|Brand mark \+ IBM Plex self-host)$/i
 
 const fail = (msg) => {
   console.error(`FAIL: ${msg}`)
@@ -157,6 +157,8 @@ if (!statusTableMatch) {
   let sawCorvidBuilt = false
   let sawRavenboardBuilt = false
   let sawSoundsBuilt = false
+  let sawBrandFontsBuilt = false
+  let sawOfferPlanned = false
   let sawImplPlanned = false
   for (const [, areaRaw, stateRaw] of stateCells) {
     const area = areaRaw.trim()
@@ -185,11 +187,17 @@ if (!statusTableMatch) {
     if (/^Move\/capture\/check\/game-end sounds$/i.test(area) && /^Built$/i.test(state)) {
       sawSoundsBuilt = true
     }
+    if (/^Brand mark \+ IBM Plex self-host$/i.test(area) && /^Built$/i.test(state)) {
+      sawBrandFontsBuilt = true
+    }
     if (BUILT_AREAS.test(area) && !/^Built$/i.test(state)) {
       fail(`STATUS row "${area}" must be Built; got "${state}"`)
     }
     if (PLANNED_AREAS.test(area) && !/^Planned$/i.test(state)) {
       fail(`STATUS row "${area}" must stay Planned until that work ships; got "${state}"`)
+    }
+    if (/^Offer SFX$/i.test(area) && /^Planned$/i.test(state)) {
+      sawOfferPlanned = true
     }
     if (/^Implementation$/i.test(area) && /^Planned$/i.test(state)) {
       sawImplPlanned = true
@@ -203,20 +211,57 @@ if (!statusTableMatch) {
   if (!sawSoundsBuilt) {
     fail('STATUS must include "| Move/capture/check/game-end sounds | Built |"')
   }
+  if (!sawBrandFontsBuilt) {
+    fail('STATUS must include "| Brand mark + IBM Plex self-host | Built |"')
+  }
+  if (!sawOfferPlanned) fail('STATUS must include "| Offer SFX | Planned |"')
   if (!sawImplPlanned) fail('STATUS must include "| Implementation | Planned |"')
   if (!process.exitCode) ok("STATUS rows use Planned/Built correctly")
 }
 
 if (
-  !/Brand mark and self-hosted IBM Plex font files are not in this repository yet/i.test(
-    readme
-  )
+  !/brand\/mark\.svg/i.test(readme) ||
+  !/fonts\/ibm-plex\//i.test(readme)
 ) {
-  fail(
-    'OVERVIEW must state "Brand mark and self-hosted IBM Plex font files are not in this repository yet"'
-  )
+  fail("OVERVIEW/GETTING STARTED must document brand/mark.svg and fonts/ibm-plex/")
 } else {
-  ok("OVERVIEW states remaining Planned assets clearly")
+  ok("brand and fonts paths documented")
+}
+
+if (!/Offer SFX is not in this repository yet/i.test(readme)) {
+  fail('OVERVIEW must state "Offer SFX is not in this repository yet"')
+} else {
+  ok("OVERVIEW states remaining Planned Offer SFX clearly")
+}
+
+if (!/OFL-1\.1|SIL Open Font License/i.test(readme)) {
+  fail("README must name OFL for IBM Plex redistribution")
+} else {
+  ok("OFL named for IBM Plex")
+}
+
+if (!/`NOTICE`|NOTICE for the license carve-out/i.test(readme)) {
+  fail("README License section must point at NOTICE carve-out")
+} else {
+  ok("NOTICE carve-out referenced")
+}
+
+const noticePath = join(repoRoot, "NOTICE")
+if (!existsSync(noticePath)) {
+  fail("missing NOTICE (OFL carve-out for fonts/ibm-plex)")
+} else {
+  const notice = readFileSync(noticePath, "utf8")
+  if (!/SIL Open Font License/i.test(notice) || !/fonts\/ibm-plex/i.test(notice)) {
+    fail("NOTICE must carve out fonts/ibm-plex under SIL Open Font License")
+  } else {
+    ok("NOTICE OFL carve-out present")
+  }
+}
+
+if (!/local.*@font-face|relative local urls|externalNetwork/i.test(readme) && !/local `@font-face` only/i.test(readme)) {
+  fail("README must state local-only @font-face / no external font network")
+} else {
+  ok("local-only font load wording present")
 }
 
 if (!/sounds\//i.test(readme) || !/LICENSE-NOTES\.md/i.test(readme)) {
