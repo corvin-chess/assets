@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * CV-022: assert assets README matches README_STYLE repository template rules.
+ * Assert assets README matches README_STYLE repository template rules (CV-022/CV-110).
  */
 import { readFileSync, existsSync } from "node:fs"
 import { dirname, join, resolve } from "node:path"
@@ -21,9 +21,10 @@ const CLOSING =
   "Original pieces, boards, and sounds so every Corvin client shares one honest face."
 
 const PLANNED_AREAS =
-  /^(Corvid piece SVGs|Ravenboard colors|Move\/capture\/check\/game-end sounds|Brand mark \+ IBM Plex self-host|Implementation)$/i
+  /^(Move\/capture\/check\/game-end sounds|Brand mark \+ IBM Plex self-host|Implementation)$/i
 
-const BUILT_AREAS = /^(README|LICENSE|CI verify gate)$/i
+const BUILT_AREAS =
+  /^(README|LICENSE|CI verify gate|Corvid piece SVGs|Ravenboard colors)$/i
 
 const fail = (msg) => {
   console.error(`FAIL: ${msg}`)
@@ -153,6 +154,8 @@ if (!statusTableMatch) {
   let sawReadmeBuilt = false
   let sawLicenseBuilt = false
   let sawCiBuilt = false
+  let sawCorvidBuilt = false
+  let sawRavenboardBuilt = false
   let sawImplPlanned = false
   for (const [, areaRaw, stateRaw] of stateCells) {
     const area = areaRaw.trim()
@@ -172,11 +175,17 @@ if (!statusTableMatch) {
     if (/^CI verify gate$/i.test(area) && /^Built$/i.test(state)) {
       sawCiBuilt = true
     }
+    if (/^Corvid piece SVGs$/i.test(area) && /^Built$/i.test(state)) {
+      sawCorvidBuilt = true
+    }
+    if (/^Ravenboard colors$/i.test(area) && /^Built$/i.test(state)) {
+      sawRavenboardBuilt = true
+    }
     if (BUILT_AREAS.test(area) && !/^Built$/i.test(state)) {
       fail(`STATUS row "${area}" must be Built; got "${state}"`)
     }
     if (PLANNED_AREAS.test(area) && !/^Planned$/i.test(state)) {
-      fail(`STATUS row "${area}" must stay Planned until assets exist; got "${state}"`)
+      fail(`STATUS row "${area}" must stay Planned until that work ships; got "${state}"`)
     }
     if (/^Implementation$/i.test(area) && /^Planned$/i.test(state)) {
       sawImplPlanned = true
@@ -185,20 +194,22 @@ if (!statusTableMatch) {
   if (!sawReadmeBuilt) fail('STATUS must include "| README | Built |"')
   if (!sawLicenseBuilt) fail('STATUS must include "| LICENSE | Built |"')
   if (!sawCiBuilt) fail('STATUS must include "| CI verify gate | Built |"')
+  if (!sawCorvidBuilt) fail('STATUS must include "| Corvid piece SVGs | Built |"')
+  if (!sawRavenboardBuilt) fail('STATUS must include "| Ravenboard colors | Built |"')
   if (!sawImplPlanned) fail('STATUS must include "| Implementation | Planned |"')
   if (!process.exitCode) ok("STATUS rows use Planned/Built correctly")
 }
 
 if (
-  !/No piece SVGs, board art, sounds, brand files, or font files are in this repository yet/i.test(
+  !/Sounds, brand mark, and self-hosted IBM Plex font files are not in this repository yet/i.test(
     readme
   )
 ) {
   fail(
-    'OVERVIEW must state "No piece SVGs, board art, sounds, brand files, or font files are in this repository yet"'
+    'OVERVIEW must state "Sounds, brand mark, and self-hosted IBM Plex font files are not in this repository yet"'
   )
 } else {
-  ok("OVERVIEW states no asset files yet")
+  ok("OVERVIEW states remaining Planned assets clearly")
 }
 
 if (!/Corvin-original/i.test(readme)) {
@@ -207,16 +218,22 @@ if (!/Corvin-original/i.test(readme)) {
   ok("Corvin-original assets wording present")
 }
 
-if (!/Corvid/i.test(readme)) {
-  fail("README must name Corvid piece set as Planned")
+if (!/pieces\/corvid\//i.test(readme)) {
+  fail("README must document pieces/corvid/ paths")
 } else {
-  ok("Corvid named")
+  ok("Corvid paths documented")
 }
 
-if (!/Ravenboard/i.test(readme)) {
-  fail("README must name Ravenboard as Planned")
+if (!/boards\/ravenboard\//i.test(readme)) {
+  fail("README must document boards/ravenboard/ paths")
 } else {
-  ok("Ravenboard named")
+  ok("Ravenboard paths documented")
+}
+
+if (!/verify-assets\.mjs/i.test(readme)) {
+  fail("TESTING must mention verify-assets.mjs")
+} else {
+  ok("verify-assets.mjs mentioned")
 }
 
 const claimedBuilt =

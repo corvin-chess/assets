@@ -1,0 +1,19 @@
+/**
+ * Ravenboard color tokens (CV-110). Values match DESIGN.md.
+ * Clients may import these variables or read colors.json.
+ */
+:root {
+  --ravenboard-light-square: #c5cddf;
+  --ravenboard-dark-square: #3a4563;
+  --ravenboard-dark-light-square: #4a5570;
+  --ravenboard-dark-dark-square: #1c2233;
+  --ravenboard-last-move: #c9a227;
+  --ravenboard-last-move-opacity: 0.35;
+  --ravenboard-selected: #8fa3d9;
+  --ravenboard-selected-width: 2px;
+  --ravenboard-legal: #8fa3d9;
+  --ravenboard-coord-on-dark: #e6e9f2;
+  --ravenboard-coord-on-light: #2f3d63;
+  --ravenboard-coord-size: 11px;
+  --ravenboard-coord-font: "IBM Plex Mono", ui-monospace, monospace;
+}

@@ -1,0 +1,29 @@
+{
+  "name": "ravenboard",
+  "light": {
+    "lightSquare": "#c5cddf",
+    "darkSquare": "#3a4563"
+  },
+  "dark": {
+    "lightSquare": "#4a5570",
+    "darkSquare": "#1c2233"
+  },
+  "lastMove": {
+    "color": "#c9a227",
+    "opacity": 0.35
+  },
+  "selected": {
+    "color": "#8fa3d9",
+    "widthPx": 2
+  },
+  "legalMove": {
+    "color": "#8fa3d9"
+  },
+  "coordinates": {
+    "onDark": "#e6e9f2",
+    "onLight": "#2f3d63",
+    "font": "IBM Plex Mono",
+    "sizePx": 11
+  },
+  "notes": "Flat 8x8 Ravenboard palette. No textures in v1. Last-move uses gold at 35% opacity overlay; selected uses mist outline; legal moves use mist disc or ring."
+}

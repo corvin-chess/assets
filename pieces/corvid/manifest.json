@@ -1,0 +1,43 @@
+{
+  "set": "corvid",
+  "viewBox": "0 0 45 45",
+  "strokeWidth": 1.5,
+  "paddingPercent": 4,
+  "pieces": [
+    "king",
+    "queen",
+    "rook",
+    "bishop",
+    "knight",
+    "pawn"
+  ],
+  "files": [
+    "w-king.svg",
+    "w-queen.svg",
+    "w-rook.svg",
+    "w-bishop.svg",
+    "w-knight.svg",
+    "w-pawn.svg",
+    "b-king.svg",
+    "b-queen.svg",
+    "b-rook.svg",
+    "b-bishop.svg",
+    "b-knight.svg",
+    "b-pawn.svg"
+  ],
+  "colors": {
+    "white": {
+      "fill": "#e8ecf4",
+      "bevel": "#f4f6fa",
+      "outline": "#2f3d63",
+      "bishopAccent": "#2f3d63"
+    },
+    "black": {
+      "fill": "#1a1f2e",
+      "bevel": "#252b3d",
+      "outline": "#8fa3d9",
+      "bishopAccent": "#c9a227"
+    }
+  },
+  "notes": "Original Corvid set. Knight silhouette is a stylized raven head in profile. Bishop mitre slit uses gold on black pieces and indigo on white pieces. Pawn head is a teardrop. Exports use ~4% viewBox padding."
+}
