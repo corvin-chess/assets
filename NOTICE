@@ -1,0 +1,9 @@
+# NOTICE
+
+Most files in this repository are licensed under Creative Commons
+Attribution-ShareAlike 4.0 International (see `LICENSE`).
+
+Exception: the IBM Plex font binaries and `OFL.txt` under `fonts/ibm-plex/` are
+redistributed under the SIL Open Font License Version 1.1 and must remain under
+that license. See `fonts/ibm-plex/OFL.txt` and `fonts/ibm-plex/LICENSE-NOTES.md`.
+Do not treat those font files as CC BY-SA 4.0.

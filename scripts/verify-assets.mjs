@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 /**
- * CV-110/CV-111: assert Corvid piece SVG exports, Ravenboard colors, and play
- * sounds match DESIGN.md intent. DESIGN.md lives in the workspace root (local).
- * CI hardcodes the same hexes and sound contract.
+ * CV-110/CV-111/CV-112: assert Corvid piece SVG exports, Ravenboard colors,
+ * play sounds, brand mark, and self-hosted IBM Plex fonts match DESIGN.md
+ * intent. DESIGN.md lives in the workspace root (local). CI hardcodes the
+ * same hexes and contracts.
  */
 import { readFileSync, existsSync, readdirSync } from "node:fs"
 import { dirname, join, resolve } from "node:path"
@@ -538,11 +539,288 @@ for (const rel of ["sounds/manifest.json", "sounds/LICENSE-NOTES.md"]) {
 }
 if (!failed) ok("no third-party names in sound metadata")
 
+/** CV-112: brand mark + self-hosted IBM Plex (no external font network). */
+const BRAND = {
+  viewBox: "0 0 64 64",
+  stroke: "#2f3d63",
+  eye: "#c9a227",
+  strokeWidth: "2",
+}
+
+const brandMarkPath = join(repoRoot, "brand", "mark.svg")
+const brandManifestPath = join(repoRoot, "brand", "manifest.json")
+const brandNotesPath = join(repoRoot, "brand", "LICENSE-NOTES.md")
+
+if (!existsSync(brandMarkPath)) {
+  fail(`missing ${brandMarkPath}`)
+} else {
+  const mark = readFileSync(brandMarkPath, "utf8")
+  if (!mark.includes(`viewBox="${BRAND.viewBox}"`)) {
+    fail(`brand/mark.svg viewBox must be "${BRAND.viewBox}"`)
+  }
+  if (!/xmlns="http:\/\/www\.w3\.org\/2000\/svg"/.test(mark)) {
+    fail("brand/mark.svg missing SVG xmlns")
+  }
+  if (emojiReLike(mark)) fail("brand/mark.svg contains emoji")
+  if (!mark.includes(`aria-label=`)) {
+    fail("brand/mark.svg missing aria-label")
+  }
+  if (!/Corvin/i.test(mark)) {
+    fail('brand/mark.svg aria-label or title must name Corvin')
+  }
+  if (!mark.toLowerCase().includes(BRAND.stroke)) {
+    fail(`brand/mark.svg missing stroke/fill ${BRAND.stroke}`)
+  }
+  if (!mark.toLowerCase().includes(BRAND.eye)) {
+    fail(`brand/mark.svg missing gold eye ${BRAND.eye}`)
+  }
+  if (!mark.includes(`stroke-width="${BRAND.strokeWidth}"`)) {
+    fail(`brand/mark.svg stroke-width must be ${BRAND.strokeWidth}`)
+  }
+  // Continuous stroke: exactly one path, fill none, open (no Z), with stroke.
+  const pathTags = [...mark.matchAll(/<path\b[^>]*>/gi)].map((m) => m[0])
+  if (pathTags.length !== 1) {
+    fail(`brand/mark.svg must have exactly one <path> (continuous stroke); got ${pathTags.length}`)
+  } else {
+    const pathTag = pathTags[0]
+    if (!/\bfill=["']none["']/i.test(pathTag)) {
+      fail('brand/mark.svg stroke path must set fill="none"')
+    }
+    if (!/\bstroke=["'][^"']+["']/i.test(pathTag)) {
+      fail("brand/mark.svg path must set stroke")
+    }
+    const dMatch = mark.match(/\bd=["']([^"']+)["']/i)
+    if (!dMatch) {
+      fail("brand/mark.svg path missing d=")
+    } else {
+      const d = dMatch[1]
+      if (/\bZ\b/i.test(d) || /z\s*$/.test(d.trim())) {
+        fail("brand/mark.svg path must stay an open continuous stroke (no Z close)")
+      }
+      // Path commands abut digits (M18); do not use \\b around M.
+      const moveCount = (d.match(/(?:^|[^A-Za-z])M(?=[\s\d.+-])/gi) || []).length
+      if (moveCount !== 1) {
+        fail(`brand/mark.svg path must be a single subpath (one M); got ${moveCount}`)
+      }
+    }
+  }
+  // Gold eye as a square (rect with equal width/height, or path forming a square).
+  const goldRect = mark.match(
+    new RegExp(
+      `<rect\\b[^>]*fill=["']${BRAND.eye}["'][^>]*>|<rect\\b[^>]*fill=["']${BRAND.eye}["'][^/]*/>`,
+      "i"
+    )
+  )
+  if (!goldRect) {
+    fail(`brand/mark.svg must include a gold square eye as <rect fill="${BRAND.eye}">`)
+  } else {
+    const rectTag = goldRect[0]
+    const w = rectTag.match(/\bwidth=["']([^"']+)["']/i)
+    const h = rectTag.match(/\bheight=["']([^"']+)["']/i)
+    if (!w || !h || w[1] !== h[1]) {
+      fail("brand/mark.svg gold eye rect must be square (equal width and height)")
+    }
+  }
+  if (forbidden.test(mark)) {
+    fail("brand/mark.svg: third-party or competitor name found")
+  }
+  if (!failed) ok("brand/mark.svg matches DESIGN raven-head + gold square eye")
+}
+
+if (!existsSync(brandManifestPath)) {
+  fail(`missing ${brandManifestPath}`)
+} else {
+  const m = JSON.parse(readFileSync(brandManifestPath, "utf8"))
+  if (m.mark !== "mark.svg") fail('brand manifest.mark must be "mark.svg"')
+  if (m.viewBox !== BRAND.viewBox) {
+    fail(`brand manifest.viewBox must be ${BRAND.viewBox}`)
+  }
+  if (normalizeHex(m.colors?.stroke) !== BRAND.stroke) {
+    fail("brand manifest stroke color mismatch")
+  }
+  if (normalizeHex(m.colors?.eye) !== BRAND.eye) {
+    fail("brand manifest eye color mismatch")
+  }
+  if (!failed) ok("brand/manifest.json matches mark contract")
+}
+
+if (!existsSync(brandNotesPath)) {
+  fail(`missing ${brandNotesPath}`)
+} else {
+  const notes = readFileSync(brandNotesPath, "utf8")
+  if (emojiReLike(notes)) fail("brand/LICENSE-NOTES.md contains emoji")
+  if (!/CC BY-SA 4\.0/i.test(notes)) {
+    fail("brand/LICENSE-NOTES.md must name CC BY-SA 4.0")
+  }
+  if (!/original/i.test(notes)) {
+    fail("brand/LICENSE-NOTES.md must state original mark")
+  }
+  if (forbidden.test(notes)) {
+    fail("brand/LICENSE-NOTES.md: third-party or competitor name found")
+  }
+  if (!failed) ok("brand/LICENSE-NOTES.md present")
+}
+
+const FONT_FILES = [
+  "IBMPlexSans-Regular.woff2",
+  "IBMPlexSans-Medium.woff2",
+  "IBMPlexSans-SemiBold.woff2",
+  "IBMPlexMono-Regular.woff2",
+]
+const fontDir = join(repoRoot, "fonts", "ibm-plex")
+const fontCssPath = join(fontDir, "fonts.css")
+const fontOflPath = join(fontDir, "OFL.txt")
+const fontNotesPath = join(fontDir, "LICENSE-NOTES.md")
+const fontManifestPath = join(fontDir, "manifest.json")
+
+if (!existsSync(fontDir)) {
+  fail(`missing ${fontDir}`)
+} else {
+  for (const file of FONT_FILES) {
+    const p = join(fontDir, file)
+    if (!existsSync(p)) {
+      fail(`missing font ${p}`)
+      continue
+    }
+    const buf = readFileSync(p)
+    if (buf.length < 1000) {
+      fail(`${file}: too small to be a real woff2 (${buf.length} bytes)`)
+    }
+    // woff2 files typically start with 'wOF2' signature
+    const sig = buf.toString("ascii", 0, 4)
+    if (sig !== "wOF2") {
+      fail(`${file}: expected wOF2 signature, got ${JSON.stringify(sig)}`)
+    }
+  }
+  if (!failed) ok("IBM Plex woff2 files present with wOF2 signature")
+}
+
+if (!existsSync(fontOflPath)) {
+  fail(`missing ${fontOflPath}`)
+} else {
+  const ofl = readFileSync(fontOflPath, "utf8")
+  if (!/SIL Open Font License/i.test(ofl)) {
+    fail("OFL.txt must contain SIL Open Font License")
+  }
+  if (!/Reserved Font Name.*Plex/i.test(ofl) && !/Reserved Font Name "Plex"/i.test(ofl)) {
+    // Accept either phrasing from IBM OFL text
+    if (!/Plex/i.test(ofl) || !/Version 1\.1/i.test(ofl)) {
+      fail("OFL.txt must be IBM Plex OFL 1.1 text")
+    }
+  }
+  if (ofl.length < 3000) {
+    fail("OFL.txt looks truncated")
+  }
+  if (!failed) ok("fonts/ibm-plex/OFL.txt present")
+}
+
+if (!existsSync(fontNotesPath)) {
+  fail(`missing ${fontNotesPath}`)
+} else {
+  const notes = readFileSync(fontNotesPath, "utf8")
+  if (emojiReLike(notes)) fail("fonts LICENSE-NOTES.md contains emoji")
+  if (!/OFL|Open Font License/i.test(notes)) {
+    fail("fonts LICENSE-NOTES.md must name OFL")
+  }
+  if (!/self-host|self host|local/i.test(notes)) {
+    fail("fonts LICENSE-NOTES.md must document self-host / local load")
+  }
+  if (/fonts\.googleapis\.com|fonts\.gstatic\.com/i.test(notes)) {
+    fail("fonts LICENSE-NOTES.md must not point clients at Google Fonts hosts")
+  }
+  if (!failed) ok("fonts/ibm-plex/LICENSE-NOTES.md present")
+}
+
+if (!existsSync(fontCssPath)) {
+  fail(`missing ${fontCssPath}`)
+} else {
+  const css = readFileSync(fontCssPath, "utf8")
+  if (emojiReLike(css)) fail("fonts.css contains emoji")
+  if (!/@font-face/i.test(css)) fail("fonts.css must declare @font-face")
+  if (!/font-family:\s*["']IBM Plex Sans["']/i.test(css)) {
+    fail('fonts.css must declare font-family: "IBM Plex Sans"')
+  }
+  if (!/font-family:\s*["']IBM Plex Mono["']/i.test(css)) {
+    fail('fonts.css must declare font-family: "IBM Plex Mono"')
+  }
+  for (const file of FONT_FILES) {
+    if (!css.includes(file)) {
+      fail(`fonts.css must reference ${file}`)
+    }
+  }
+  // DoD: no external font network on load — only relative url(...) to local files.
+  const urlRe = /url\(\s*(['"]?)([^)'"]+)\1\s*\)/gi
+  let um
+  while ((um = urlRe.exec(css)) !== null) {
+    const u = um[2].trim()
+    if (/^https?:\/\//i.test(u) || u.startsWith("//")) {
+      fail(`fonts.css external url not allowed: ${u}`)
+    }
+    if (/fonts\.googleapis\.com|fonts\.gstatic\.com|cdn\.jsdelivr\.net|unpkg\.com/i.test(u)) {
+      fail(`fonts.css forbidden font CDN host: ${u}`)
+    }
+    const rel = u.replace(/^\.\//, "")
+    if (!FONT_FILES.includes(rel.split("/").pop())) {
+      // allow only known local woff2 basenames
+      const base = rel.split(/[\\/]/).pop()
+      if (!FONT_FILES.includes(base)) {
+        fail(`fonts.css url must point at a listed local woff2, got ${u}`)
+      }
+    }
+  }
+  if (/fonts\.googleapis\.com|fonts\.gstatic\.com|Google Fonts/i.test(css)) {
+    fail("fonts.css must not mention Google Fonts hosts")
+  }
+  if (!failed) ok("fonts.css is local-only @font-face (no external font network)")
+}
+
+if (!existsSync(fontManifestPath)) {
+  fail(`missing ${fontManifestPath}`)
+} else {
+  const m = JSON.parse(readFileSync(fontManifestPath, "utf8"))
+  if (m.familySans !== "IBM Plex Sans") {
+    fail('font manifest.familySans must be "IBM Plex Sans"')
+  }
+  if (m.familyMono !== "IBM Plex Mono") {
+    fail('font manifest.familyMono must be "IBM Plex Mono"')
+  }
+  if (m.license !== "OFL-1.1") fail('font manifest.license must be "OFL-1.1"')
+  if (m.css !== "fonts.css") fail('font manifest.css must be "fonts.css"')
+  if (m.externalNetwork !== false) {
+    fail("font manifest.externalNetwork must be false")
+  }
+  if (!Array.isArray(m.files) || m.files.length !== FONT_FILES.length) {
+    fail(`font manifest.files must list ${FONT_FILES.length} woff2 files`)
+  } else {
+    for (const file of FONT_FILES) {
+      if (!m.files.includes(file)) fail(`font manifest.files missing ${file}`)
+      if (!existsSync(join(fontDir, file))) {
+        fail(`font manifest lists missing ${file}`)
+      }
+    }
+  }
+  if (!failed) ok("fonts/ibm-plex/manifest.json matches self-host contract")
+}
+
+if (existsSync(designPath)) {
+  const design = readFileSync(designPath, "utf8")
+  if (!/IBM Plex Sans/i.test(design) || !/IBM Plex Mono/i.test(design)) {
+    fail("workspace DESIGN.md must still list IBM Plex Sans and Mono")
+  }
+  if (!/self-hosted fonts from `assets`/i.test(design) && !/self-hosted fonts from assets/i.test(design)) {
+    fail("workspace DESIGN.md must require self-hosted fonts from assets")
+  }
+  if (!/gold square/i.test(design) && !/negative-space eye/i.test(design)) {
+    fail("workspace DESIGN.md must still describe gold square eye brand mark")
+  }
+  if (!failed) ok("workspace DESIGN.md still lists brand + self-hosted IBM Plex")
+}
+
 if (failed) {
   console.error(`\n${failed} check(s) failed.`)
   process.exit(1)
 }
-console.log("\nAll CV-110/CV-111 Corvid/Ravenboard/sound checks passed.")
+console.log("\nAll CV-110/CV-111/CV-112 Corvid/Ravenboard/sound/brand/font checks passed.")
 
 function emojiReLike(text) {
   return /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u.test(text)

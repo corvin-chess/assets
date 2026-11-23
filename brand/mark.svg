@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Corvin mark">
+  <!--
+    Geometric raven head in profile (facing right): one open continuous stroke
+    that also reads as a knight-like curve. Negative-space eye is a gold square.
+    Colors from DESIGN.md: indigo stroke, gold eye. Path stays fill="none" and
+    is not closed with Z (stroke mark, not a filled silhouette).
+  -->
+  <path
+    fill="none"
+    stroke="#2f3d63"
+    stroke-width="2"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    d="M18 52
+       C20 42 24 32 30 26
+       C36 20 44 18 50 20
+       L56 24
+       L50 28
+       C46 30 42 28 40 26
+       C38 32 34 40 28 46
+       C24 50 20 52 18 52"
+  />
+  <rect x="42" y="22" width="4" height="4" fill="#c9a227" />
+</svg>
