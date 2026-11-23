@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
- * CV-110: assert Corvid piece SVG exports and Ravenboard colors match DESIGN.md.
- * DESIGN.md lives in the workspace root (local). CI hardcodes the same hexes.
+ * CV-110/CV-111: assert Corvid piece SVG exports, Ravenboard colors, and play
+ * sounds match DESIGN.md intent. DESIGN.md lives in the workspace root (local).
+ * CI hardcodes the same hexes and sound contract.
  */
 import { readFileSync, existsSync, readdirSync } from "node:fs"
 import { dirname, join, resolve } from "node:path"
@@ -312,13 +313,237 @@ if (existsSync(designPath)) {
       fail(`workspace DESIGN.md missing expected hex ${hex}`)
     }
   }
-  if (!failed) ok("workspace DESIGN.md still lists Corvid/Ravenboard hexes")
+  if (!/assets\/sounds\//i.test(design) && !/Original recordings\/synthesis in `assets\/sounds\/`/i.test(design)) {
+    fail("workspace DESIGN.md missing assets/sounds/ principle")
+  }
+  if (!failed) ok("workspace DESIGN.md still lists Corvid/Ravenboard hexes and sounds path")
 } else {
   ok("DESIGN.md not in CI checkout; using hardcoded DESIGN constants")
 }
+
+/** CV-111: original play SFX (WAV PCM) + mute-safe license notes. */
+const SOUND_EVENTS = ["move", "capture", "check", "game-end"]
+const SOUND_SAMPLE_RATE = 44100
+const SOUND_CHANNELS = 1
+const SOUND_BITS = 16
+const SOUND_MIN_MS = 40
+const SOUND_MAX_MS = 900
+const SOUND_MAX_LEAD_MS = 30
+const SOUND_MIN_PEAK = 20000 // peak-normalized clips stay near DESIGN ~0.9 int16
+const SOUND_MAX_PEAK = 32767
+const SOUND_MAX_BYTES = 200_000 // CI DoS guard; valid clips are tens of KB
+
+const readWavPcm16Mono = (buf, label) => {
+  if (buf.length > SOUND_MAX_BYTES) {
+    fail(`${label}: file ${buf.length} bytes exceeds ${SOUND_MAX_BYTES}`)
+    return null
+  }
+  if (buf.length < 44) {
+    fail(`${label}: WAV too short for header`)
+    return null
+  }
+  if (buf.toString("ascii", 0, 4) !== "RIFF" || buf.toString("ascii", 8, 12) !== "WAVE") {
+    fail(`${label}: missing RIFF/WAVE header`)
+    return null
+  }
+  let offset = 12
+  let fmt = null
+  let dataOffset = -1
+  let dataSize = 0
+  while (offset + 8 <= buf.length) {
+    const id = buf.toString("ascii", offset, offset + 4)
+    const size = buf.readUInt32LE(offset + 4)
+    const chunkStart = offset + 8
+    if (id === "fmt ") {
+      if (size < 16 || chunkStart + 16 > buf.length) {
+        fail(`${label}: fmt chunk truncated`)
+        return null
+      }
+      fmt = {
+        audioFormat: buf.readUInt16LE(chunkStart),
+        channels: buf.readUInt16LE(chunkStart + 2),
+        sampleRate: buf.readUInt32LE(chunkStart + 4),
+        bitsPerSample: buf.readUInt16LE(chunkStart + 14),
+      }
+    } else if (id === "data") {
+      dataOffset = chunkStart
+      dataSize = size
+      break
+    }
+    offset = chunkStart + size + (size % 2)
+  }
+  if (!fmt) {
+    fail(`${label}: missing fmt chunk`)
+    return null
+  }
+  if (fmt.audioFormat !== 1) {
+    fail(`${label}: audioFormat must be 1 (PCM), got ${fmt.audioFormat}`)
+  }
+  if (fmt.channels !== SOUND_CHANNELS) {
+    fail(`${label}: channels must be ${SOUND_CHANNELS}, got ${fmt.channels}`)
+  }
+  if (fmt.sampleRate !== SOUND_SAMPLE_RATE) {
+    fail(`${label}: sampleRate must be ${SOUND_SAMPLE_RATE}, got ${fmt.sampleRate}`)
+  }
+  if (fmt.bitsPerSample !== SOUND_BITS) {
+    fail(`${label}: bitsPerSample must be ${SOUND_BITS}, got ${fmt.bitsPerSample}`)
+  }
+  if (dataOffset < 0 || dataOffset + dataSize > buf.length) {
+    fail(`${label}: missing or truncated data chunk`)
+    return null
+  }
+  if (dataSize < 2 || dataSize % 2 !== 0) {
+    fail(`${label}: data size must be positive even PCM16 byte count`)
+    return null
+  }
+  const samples = new Int16Array(dataSize / 2)
+  for (let i = 0; i < samples.length; i++) {
+    samples[i] = buf.readInt16LE(dataOffset + i * 2)
+  }
+  return samples
+}
+
+const soundDir = join(repoRoot, "sounds")
+const soundNotesPath = join(soundDir, "LICENSE-NOTES.md")
+const soundManifestPath = join(soundDir, "manifest.json")
+
+if (!existsSync(soundDir)) {
+  fail(`missing ${soundDir}`)
+} else {
+  for (const event of SOUND_EVENTS) {
+    const wavPath = join(soundDir, `${event}.wav`)
+    if (!existsSync(wavPath)) {
+      fail(`missing sound ${wavPath}`)
+      continue
+    }
+    const buf = readFileSync(wavPath)
+    const samples = readWavPcm16Mono(buf, event)
+    if (!samples) continue
+    const durationMs = (samples.length / SOUND_SAMPLE_RATE) * 1000
+    if (durationMs < SOUND_MIN_MS || durationMs > SOUND_MAX_MS) {
+      fail(
+        `${event}: duration ${durationMs.toFixed(1)}ms out of ${SOUND_MIN_MS}-${SOUND_MAX_MS}ms`
+      )
+    }
+    let firstNonZero = samples.length
+    for (let i = 0; i < samples.length; i++) {
+      if (samples[i] !== 0) {
+        firstNonZero = i
+        break
+      }
+    }
+    const leadMs = (firstNonZero / SOUND_SAMPLE_RATE) * 1000
+    if (leadMs > SOUND_MAX_LEAD_MS) {
+      fail(
+        `${event}: lead-in silence ${leadMs.toFixed(1)}ms exceeds DESIGN start-latency budget (${SOUND_MAX_LEAD_MS}ms)`
+      )
+    }
+    let peak = 0
+    for (let i = 0; i < samples.length; i++) {
+      const a = Math.abs(samples[i])
+      if (a > peak) peak = a
+    }
+    if (peak < SOUND_MIN_PEAK) {
+      fail(`${event}: peak ${peak} too quiet (min ${SOUND_MIN_PEAK})`)
+    }
+    if (peak > SOUND_MAX_PEAK) {
+      fail(`${event}: peak ${peak} exceeds int16 max`)
+    }
+  }
+  if (!failed) ok("four play WAV files are PCM16/44.1k mono within duration/peak/lead bounds")
+}
+
+if (!existsSync(soundManifestPath)) {
+  fail(`missing ${soundManifestPath}`)
+} else {
+  const m = JSON.parse(readFileSync(soundManifestPath, "utf8"))
+  if (m.set !== "corvin-play") fail('sounds manifest.set must be "corvin-play"')
+  if (m.format !== "wav-pcm16-mono-44100") {
+    fail('sounds manifest.format must be "wav-pcm16-mono-44100"')
+  }
+  if (m.license !== "CC-BY-SA-4.0") {
+    fail('sounds manifest.license must be "CC-BY-SA-4.0"')
+  }
+  if (m.muteSafe !== true) {
+    fail("sounds manifest.muteSafe must be true")
+  }
+  if (m.generator !== "scripts/synthesize-sounds.mjs") {
+    fail('sounds manifest.generator must be "scripts/synthesize-sounds.mjs"')
+  }
+  if (m.notes !== "LICENSE-NOTES.md") {
+    fail('sounds manifest.notes must be "LICENSE-NOTES.md"')
+  }
+  if (!existsSync(join(repoRoot, "scripts", "synthesize-sounds.mjs"))) {
+    fail("missing scripts/synthesize-sounds.mjs referenced by manifest")
+  }
+  if (!Array.isArray(m.events) || m.events.length !== SOUND_EVENTS.length) {
+    fail(`sounds manifest.events must list ${SOUND_EVENTS.length} events`)
+  } else {
+    for (const event of SOUND_EVENTS) {
+      if (!m.events.includes(event)) fail(`sounds manifest.events missing ${event}`)
+      const file = `${event}.wav`
+      if (!Array.isArray(m.files) || !m.files.includes(file)) {
+        fail(`sounds manifest.files missing ${file}`)
+      }
+      if (!existsSync(join(soundDir, file))) {
+        fail(`sounds manifest lists missing ${file}`)
+      }
+    }
+  }
+  if (m.files?.includes("offer.wav")) {
+    fail("offer.wav is out of CV-111 scope; omit until a dedicated task")
+  }
+  if (!failed) ok("sounds/manifest.json matches CV-111 contract")
+}
+
+if (!existsSync(soundNotesPath)) {
+  fail(`missing ${soundNotesPath}`)
+} else {
+  const notes = readFileSync(soundNotesPath, "utf8")
+  if (emojiReLike(notes)) fail("LICENSE-NOTES.md contains emoji")
+  if (!/CC BY-SA 4\.0/i.test(notes)) {
+    fail("LICENSE-NOTES.md must name CC BY-SA 4.0")
+  }
+  if (!/mute/i.test(notes)) {
+    fail("LICENSE-NOTES.md must document mute-safe / mute allowed")
+  }
+  if (!/original/i.test(notes) || !/synthes/i.test(notes)) {
+    fail("LICENSE-NOTES.md must state original synthesis (no third-party samples)")
+  }
+  if (!/no\s+obligation\s+to\s+play|may\s+be\s+muted|mute\s+is\s+allowed/i.test(notes)) {
+    fail("LICENSE-NOTES.md must state clients may mute / no obligation to play")
+  }
+  if (forbidden.test(notes)) {
+    fail("LICENSE-NOTES.md: third-party or competitor name found")
+  }
+  if (!failed) ok("sounds/LICENSE-NOTES.md mute-safe license notes present")
+}
+
+const soundExtras = existsSync(soundDir)
+  ? readdirSync(soundDir).filter(
+      (f) =>
+        f.endsWith(".wav") &&
+        !SOUND_EVENTS.map((e) => `${e}.wav`).includes(f)
+    )
+  : []
+if (soundExtras.length) {
+  fail(`unexpected WAV in sounds/: ${soundExtras.join(", ")}`)
+}
+
+for (const rel of ["sounds/manifest.json", "sounds/LICENSE-NOTES.md"]) {
+  const p = join(repoRoot, rel)
+  if (existsSync(p) && forbidden.test(readFileSync(p, "utf8"))) {
+    fail(`${rel}: third-party or competitor name found`)
+  }
+}
+if (!failed) ok("no third-party names in sound metadata")
 
 if (failed) {
   console.error(`\n${failed} check(s) failed.`)
   process.exit(1)
 }
-console.log("\nAll CV-110 Corvid/Ravenboard checks passed.")
+console.log("\nAll CV-110/CV-111 Corvid/Ravenboard/sound checks passed.")
+
+function emojiReLike(text) {
+  return /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u.test(text)
+}
