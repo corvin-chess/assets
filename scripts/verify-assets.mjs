@@ -322,8 +322,8 @@ if (existsSync(designPath)) {
   ok("DESIGN.md not in CI checkout; using hardcoded DESIGN constants")
 }
 
-/** CV-111: original play SFX (WAV PCM) + mute-safe license notes. */
-const SOUND_EVENTS = ["move", "capture", "check", "game-end"]
+/** CV-111/CV-116: original play SFX (WAV PCM) + mute-safe license notes. */
+const SOUND_EVENTS = ["move", "capture", "check", "game-end", "offer"]
 const SOUND_SAMPLE_RATE = 44100
 const SOUND_CHANNELS = 1
 const SOUND_BITS = 16
@@ -451,7 +451,11 @@ if (!existsSync(soundDir)) {
       fail(`${event}: peak ${peak} exceeds int16 max`)
     }
   }
-  if (!failed) ok("four play WAV files are PCM16/44.1k mono within duration/peak/lead bounds")
+  if (!failed) {
+    ok(
+      `${SOUND_EVENTS.length} play WAV files are PCM16/44.1k mono within duration/peak/lead bounds`
+    )
+  }
 }
 
 if (!existsSync(soundManifestPath)) {
@@ -491,10 +495,10 @@ if (!existsSync(soundManifestPath)) {
       }
     }
   }
-  if (m.files?.includes("offer.wav")) {
-    fail("offer.wav is out of CV-111 scope; omit until a dedicated task")
+  if (!m.files?.includes("offer.wav") || !m.events?.includes("offer")) {
+    fail("sounds manifest must include offer event and offer.wav (CV-116)")
   }
-  if (!failed) ok("sounds/manifest.json matches CV-111 contract")
+  if (!failed) ok("sounds/manifest.json matches CV-111/CV-116 contract")
 }
 
 if (!existsSync(soundNotesPath)) {
@@ -513,6 +517,9 @@ if (!existsSync(soundNotesPath)) {
   }
   if (!/no\s+obligation\s+to\s+play|may\s+be\s+muted|mute\s+is\s+allowed/i.test(notes)) {
     fail("LICENSE-NOTES.md must state clients may mute / no obligation to play")
+  }
+  if (!/`offer\.wav`/i.test(notes) && !/offer\.wav/i.test(notes)) {
+    fail("LICENSE-NOTES.md must list offer.wav")
   }
   if (forbidden.test(notes)) {
     fail("LICENSE-NOTES.md: third-party or competitor name found")
@@ -820,7 +827,9 @@ if (failed) {
   console.error(`\n${failed} check(s) failed.`)
   process.exit(1)
 }
-console.log("\nAll CV-110/CV-111/CV-112 Corvid/Ravenboard/sound/brand/font checks passed.")
+console.log(
+  "\nAll CV-110/CV-111/CV-112/CV-116 Corvid/Ravenboard/sound/brand/font checks passed."
+)
 
 function emojiReLike(text) {
   return /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u.test(text)
