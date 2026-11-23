@@ -1,0 +1,10 @@
+{
+  "set": "corvin-play",
+  "format": "wav-pcm16-mono-44100",
+  "license": "CC-BY-SA-4.0",
+  "muteSafe": true,
+  "events": ["move", "capture", "check", "game-end"],
+  "files": ["move.wav", "capture.wav", "check.wav", "game-end.wav"],
+  "notes": "LICENSE-NOTES.md",
+  "generator": "scripts/synthesize-sounds.mjs"
+}

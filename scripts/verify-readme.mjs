@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Assert assets README matches README_STYLE repository template rules (CV-022/CV-110).
+ * Assert assets README matches README_STYLE repository template rules (CV-022/CV-110/CV-111).
  */
 import { readFileSync, existsSync } from "node:fs"
 import { dirname, join, resolve } from "node:path"
@@ -21,10 +21,10 @@ const CLOSING =
   "Original pieces, boards, and sounds so every Corvin client shares one honest face."
 
 const PLANNED_AREAS =
-  /^(Move\/capture\/check\/game-end sounds|Brand mark \+ IBM Plex self-host|Implementation)$/i
+  /^(Brand mark \+ IBM Plex self-host|Implementation)$/i
 
 const BUILT_AREAS =
-  /^(README|LICENSE|CI verify gate|Corvid piece SVGs|Ravenboard colors)$/i
+  /^(README|LICENSE|CI verify gate|Corvid piece SVGs|Ravenboard colors|Move\/capture\/check\/game-end sounds)$/i
 
 const fail = (msg) => {
   console.error(`FAIL: ${msg}`)
@@ -156,6 +156,7 @@ if (!statusTableMatch) {
   let sawCiBuilt = false
   let sawCorvidBuilt = false
   let sawRavenboardBuilt = false
+  let sawSoundsBuilt = false
   let sawImplPlanned = false
   for (const [, areaRaw, stateRaw] of stateCells) {
     const area = areaRaw.trim()
@@ -181,6 +182,9 @@ if (!statusTableMatch) {
     if (/^Ravenboard colors$/i.test(area) && /^Built$/i.test(state)) {
       sawRavenboardBuilt = true
     }
+    if (/^Move\/capture\/check\/game-end sounds$/i.test(area) && /^Built$/i.test(state)) {
+      sawSoundsBuilt = true
+    }
     if (BUILT_AREAS.test(area) && !/^Built$/i.test(state)) {
       fail(`STATUS row "${area}" must be Built; got "${state}"`)
     }
@@ -196,20 +200,35 @@ if (!statusTableMatch) {
   if (!sawCiBuilt) fail('STATUS must include "| CI verify gate | Built |"')
   if (!sawCorvidBuilt) fail('STATUS must include "| Corvid piece SVGs | Built |"')
   if (!sawRavenboardBuilt) fail('STATUS must include "| Ravenboard colors | Built |"')
+  if (!sawSoundsBuilt) {
+    fail('STATUS must include "| Move/capture/check/game-end sounds | Built |"')
+  }
   if (!sawImplPlanned) fail('STATUS must include "| Implementation | Planned |"')
   if (!process.exitCode) ok("STATUS rows use Planned/Built correctly")
 }
 
 if (
-  !/Sounds, brand mark, and self-hosted IBM Plex font files are not in this repository yet/i.test(
+  !/Brand mark and self-hosted IBM Plex font files are not in this repository yet/i.test(
     readme
   )
 ) {
   fail(
-    'OVERVIEW must state "Sounds, brand mark, and self-hosted IBM Plex font files are not in this repository yet"'
+    'OVERVIEW must state "Brand mark and self-hosted IBM Plex font files are not in this repository yet"'
   )
 } else {
   ok("OVERVIEW states remaining Planned assets clearly")
+}
+
+if (!/sounds\//i.test(readme) || !/LICENSE-NOTES\.md/i.test(readme)) {
+  fail("README must document sounds/ paths and LICENSE-NOTES.md")
+} else {
+  ok("sounds paths and LICENSE-NOTES documented")
+}
+
+if (!/synthesize-sounds\.mjs/i.test(readme)) {
+  fail("DEVELOPMENT/TESTING must mention synthesize-sounds.mjs")
+} else {
+  ok("synthesize-sounds.mjs mentioned")
 }
 
 if (!/Corvin-original/i.test(readme)) {
@@ -237,7 +256,7 @@ if (!/verify-assets\.mjs/i.test(readme)) {
 }
 
 const claimedBuilt =
-  /\b(Shipped|Live at|users online|ELO|CDN hits|asset count|\d+\s+SVGs|\d+\s+sounds|in production)\b/i
+  /\b(Shipped|Live at|users online|ELO|CDN hits|asset count|in production)\b/i
 if (claimedBuilt.test(readme)) {
   fail("unverified performance or production claims found")
 } else {
