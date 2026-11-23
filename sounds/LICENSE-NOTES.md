@@ -16,7 +16,7 @@ mute and per-event toggles; respect user preference and reduced-motion / quiet
 modes. Default-on for move and capture, and quiet by default for any future
 spectator crowd effects, matches the organization design document.
 
-## Files in this task
+## Files
 
 | File | Event |
 |---|---|
@@ -24,5 +24,4 @@ spectator crowd effects, matches the organization design document.
 | `capture.wav` | Capture |
 | `check.wav` | Check |
 | `game-end.wav` | Game finished |
-
-Offer and other cues are not included here yet.
+| `offer.wav` | Draw, takeback, or rematch offer |

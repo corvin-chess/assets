@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Assert assets README matches README_STYLE repository template rules
- * (CV-022/CV-110/CV-111/CV-112).
+ * (CV-022/CV-110/CV-111/CV-112/CV-116).
  */
 import { readFileSync, existsSync } from "node:fs"
 import { dirname, join, resolve } from "node:path"
@@ -21,10 +21,10 @@ const LICENSE_ID = "CC BY-SA 4.0"
 const CLOSING =
   "Original pieces, boards, and sounds so every Corvin client shares one honest face."
 
-const PLANNED_AREAS = /^(Offer SFX|Implementation)$/i
+const PLANNED_AREAS = /^(Implementation)$/i
 
 const BUILT_AREAS =
-  /^(README|LICENSE|CI verify gate|Corvid piece SVGs|Ravenboard colors|Move\/capture\/check\/game-end sounds|Brand mark \+ IBM Plex self-host)$/i
+  /^(README|LICENSE|CI verify gate|Corvid piece SVGs|Ravenboard colors|Move\/capture\/check\/game-end sounds|Brand mark \+ IBM Plex self-host|Offer SFX)$/i
 
 const fail = (msg) => {
   console.error(`FAIL: ${msg}`)
@@ -158,7 +158,7 @@ if (!statusTableMatch) {
   let sawRavenboardBuilt = false
   let sawSoundsBuilt = false
   let sawBrandFontsBuilt = false
-  let sawOfferPlanned = false
+  let sawOfferBuilt = false
   let sawImplPlanned = false
   for (const [, areaRaw, stateRaw] of stateCells) {
     const area = areaRaw.trim()
@@ -190,14 +190,14 @@ if (!statusTableMatch) {
     if (/^Brand mark \+ IBM Plex self-host$/i.test(area) && /^Built$/i.test(state)) {
       sawBrandFontsBuilt = true
     }
+    if (/^Offer SFX$/i.test(area) && /^Built$/i.test(state)) {
+      sawOfferBuilt = true
+    }
     if (BUILT_AREAS.test(area) && !/^Built$/i.test(state)) {
       fail(`STATUS row "${area}" must be Built; got "${state}"`)
     }
     if (PLANNED_AREAS.test(area) && !/^Planned$/i.test(state)) {
       fail(`STATUS row "${area}" must stay Planned until that work ships; got "${state}"`)
-    }
-    if (/^Offer SFX$/i.test(area) && /^Planned$/i.test(state)) {
-      sawOfferPlanned = true
     }
     if (/^Implementation$/i.test(area) && /^Planned$/i.test(state)) {
       sawImplPlanned = true
@@ -214,7 +214,7 @@ if (!statusTableMatch) {
   if (!sawBrandFontsBuilt) {
     fail('STATUS must include "| Brand mark + IBM Plex self-host | Built |"')
   }
-  if (!sawOfferPlanned) fail('STATUS must include "| Offer SFX | Planned |"')
+  if (!sawOfferBuilt) fail('STATUS must include "| Offer SFX | Built |"')
   if (!sawImplPlanned) fail('STATUS must include "| Implementation | Planned |"')
   if (!process.exitCode) ok("STATUS rows use Planned/Built correctly")
 }
@@ -228,10 +228,15 @@ if (
   ok("brand and fonts paths documented")
 }
 
-if (!/Offer SFX is not in this repository yet/i.test(readme)) {
-  fail('OVERVIEW must state "Offer SFX is not in this repository yet"')
+if (!/offer\.wav/i.test(readme) && !/`offer`/i.test(readme)) {
+  fail("OVERVIEW/GETTING STARTED must document offer.wav or offer event")
 } else {
-  ok("OVERVIEW states remaining Planned Offer SFX clearly")
+  ok("offer SFX documented in README")
+}
+if (/Offer SFX is not in this repository yet|Offer SFX stays out of scope|Planned later:\s*offer SFX/i.test(readme)) {
+  fail("README must not claim Offer SFX is still Planned after CV-116")
+} else {
+  ok("README no longer marks Offer SFX as missing")
 }
 
 if (!/OFL-1\.1|SIL Open Font License/i.test(readme)) {

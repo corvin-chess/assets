@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * CV-111: synthesize original Corvin play SFX as PCM16 mono 44.1kHz WAV.
+ * CV-111/CV-116: synthesize original Corvin play SFX as PCM16 mono 44.1kHz WAV.
  * Deterministic; no third-party samples. Re-run to regenerate sounds/*.wav.
  */
 import { mkdirSync, writeFileSync } from "node:fs"
@@ -109,11 +109,23 @@ const synthGameEnd = (t) => {
   return (a + b) * env
 }
 
+/** Offer: soft invitation ping (draw/takeback/rematch); gentler than check. */
+const synthOffer = (t) => {
+  const dur = 0.3
+  const env = envelope(t, 0.005, 0.09, 0.18, dur)
+  if (env <= 0) return 0
+  const first = tone(t, 523.25) * Math.exp(-t * 9) * 0.7
+  const second =
+    t > 0.1 ? tone(t, 659.25) * Math.exp(-(t - 0.1) * 11) * 0.55 : 0
+  return (first + second) * env
+}
+
 const EVENTS = {
   move: { seconds: 0.1, fn: synthMove },
   capture: { seconds: 0.18, fn: synthCapture },
   check: { seconds: 0.24, fn: synthCheck },
   "game-end": { seconds: 0.48, fn: synthGameEnd },
+  offer: { seconds: 0.32, fn: synthOffer },
 }
 
 mkdirSync(outDir, { recursive: true })
@@ -126,4 +138,4 @@ for (const [name, { seconds, fn }] of Object.entries(EVENTS)) {
   console.log(`wrote ${path} (${pcm.length / 2} samples)`)
 }
 
-console.log("CV-111 sound synthesis complete.")
+console.log("CV-111/CV-116 sound synthesis complete.")
